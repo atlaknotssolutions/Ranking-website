@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 const PAGE_SIZE = 7;
 
 const THE_URL = "https://www.timeshighereducation.com/world-university-rankings";
-const OTHER_URL = "https://example.com";
+const OTHER_URL = "https://www.timeshighereducation.com/world-university-rankings";
 
 const initialData = [
   { id: 1, university: "University of Oxford", country: "United Kingdom", status: "Active" },
