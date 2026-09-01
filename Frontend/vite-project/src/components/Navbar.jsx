@@ -10,6 +10,7 @@ const Navbar = () => {
   // Menu Data
   const menuData = {
     main: [
+      { title: "Home", hasChildren: false, path: "/" },
       { title: "Ranking", hasChildren: false, path: "/university-dashboard" },
       { title: "University", hasChildren: true, key: "university" },
       { title: "Research", hasChildren: true, key: "research" },
