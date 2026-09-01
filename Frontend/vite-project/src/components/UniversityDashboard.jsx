@@ -984,6 +984,7 @@ export default function UniversityDashboard() {
                         City
                       </th>
                      
+                     
                     </tr>
                   </thead>
                   <tbody>
