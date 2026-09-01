@@ -1,67 +1,158 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 
 const PAGE_SIZE = 7;
+
+// ⬇️ Apne backend ka base URL yahan daalo
+const API_BASE = "http://localhost:5000/api/rankings";
 
 const THE_URL = "https://www.timeshighereducation.com/world-university-rankings/latest/world-ranking";
 const OTHER_URL = "https://www.timeshighereducation.com/world-university-rankings/latest/world-ranking";
 
-const initialData = [
-  { id: 1, university: "University of Oxford", country: "United Kingdom", status: "Active" },
-  { id: 2, university: "MIT", country: "United States", status: "Active" }
-  
-];
-
 export default function UniversityDashboard() {
   const [activeTab, setActiveTab] = useState("all");
-  const [manualData, setManualData] = useState(initialData);
+  const [manualData, setManualData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ university: "", country: "", status: "Active" });
+  const [form, setForm] = useState({
+    university: "",
+    country: "",
+    city: "",
+    status: "Active",
+    rank: "",
+    score: "",
+    year: new Date().getFullYear(),
+    source: "Manual",
+  });
   const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
 
+  // ========== FETCH FROM BACKEND ==========
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(API_BASE);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      // Backend response array of objects assume kiya
+      // fields: _id / id, university, country, city, status, rank, score, year, source, website
+      const normalized = (Array.isArray(data) ? data : data.data || []).map((item) => ({
+        id: item._id || item.id,
+        university: item.university || item.name || "",
+        country: item.country || "",
+        city: item.city || "",
+        status: item.status || "Active",
+        rank: item.rank ?? null,
+        score: item.score ?? null,
+        year: item.year ?? null,
+        source: item.source || "Manual",
+        website: item.website || "",
+      }));
+
+      setManualData(normalized);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to load data from backend");
+      setManualData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // ========== FILTER + PAGINATION ==========
   const filteredData = useMemo(() => {
     const keyword = search.toLowerCase().trim();
     if (!keyword) return manualData;
     return manualData.filter((item) =>
-      `${item.university} ${item.country} ${item.status}`.toLowerCase().includes(keyword)
+      `${item.university} ${item.country} ${item.city} ${item.status} ${item.source}`
+        .toLowerCase()
+        .includes(keyword)
     );
   }, [manualData, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const visibleData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const visibleData = filteredData.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
+  // ========== FORM HANDLERS ==========
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e) => {
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({
+      university: "",
+      country: "",
+      city: "",
+      status: "Active",
+      rank: "",
+      score: "",
+      year: new Date().getFullYear(),
+      source: "Manual",
+    });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.university.trim() || !form.country.trim()) {
       alert("Please enter university and country.");
       return;
     }
 
-    if (editingId) {
-      setManualData((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? { ...item, university: form.university, country: form.country, status: form.status }
-            : item
-        )
-      );
-    } else {
-      setManualData((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          university: form.university,
-          country: form.country,
-          status: form.status,
-        },
-      ]);
+    setSaving(true);
+    try {
+      const payload = {
+        university: form.university.trim(),
+        country: form.country.trim(),
+        city: form.city.trim() || null,
+        status: form.status,
+        rank: form.rank ? Number(form.rank) : null,
+        score: form.score ? Number(form.score) : null,
+        year: form.year ? Number(form.year) : null,
+        source: form.source || "Manual",
+      };
+
+      let res;
+      if (editingId) {
+        // UPDATE
+        res = await fetch(`${API_BASE}/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // CREATE
+        res = await fetch(API_BASE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `HTTP ${res.status}`);
+      }
+
+      // Refresh list from backend
+      await fetchData();
+      resetForm();
+    } catch (err) {
+      alert("Save failed: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    resetForm();
   };
 
   const handleEdit = (item) => {
@@ -69,18 +160,25 @@ export default function UniversityDashboard() {
     setForm({
       university: item.university,
       country: item.country,
-      status: item.status,
+      city: item.city || "",
+      status: item.status || "Active",
+      rank: item.rank ?? "",
+      score: item.score ?? "",
+      year: item.year ?? new Date().getFullYear(),
+      source: item.source || "Manual",
     });
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this record?")) return;
-    setManualData((prev) => prev.filter((item) => item.id !== id));
-  };
 
-  const resetForm = () => {
-    setEditingId(null);
-    setForm({ university: "", country: "", status: "Active" });
+    try {
+      const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch (err) {
+      alert("Delete failed: " + err.message);
+    }
   };
 
   const changePage = (newPage) => {
@@ -138,34 +236,52 @@ export default function UniversityDashboard() {
             <div className="flex items-center justify-between border-b border-black/5 bg-[#faf9f6] px-5 py-4">
               <div>
                 <h2 className="text-[17px] font-semibold text-[#1a1a1a]">Manual Data</h2>
-                <p className="mt-0.5 text-xs text-[#666]">Your own university records</p>
+                <p className="mt-0.5 text-xs text-[#666]">
+                  Data coming from backend API
+                </p>
               </div>
-              <span className="rounded-full bg-[#e8f0d8] px-3 py-1 text-xs font-semibold text-[#2d2d2d]">
-                {manualData.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchData}
+                  disabled={loading}
+                  className="rounded-full bg-[#f0ebe3] px-3 py-1.5 text-xs font-medium text-[#2d2d2d] hover:bg-[#e5ddd0] disabled:opacity-50"
+                >
+                  ↻ Refresh
+                </button>
+                <span className="rounded-full bg-[#e8f0d8] px-3 py-1 text-xs font-semibold text-[#2d2d2d]">
+                  {manualData.length}
+                </span>
+              </div>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="grid gap-2.5 p-4 md:grid-cols-4">
+            <form onSubmit={handleSubmit} className="grid gap-2.5 p-4 md:grid-cols-4 lg:grid-cols-5">
               <input
                 name="university"
                 value={form.university}
                 onChange={handleChange}
                 placeholder="University name"
-                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2d2d2d] focus:bg-white"
+                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm outline-none focus:border-[#2d2d2d] focus:bg-white"
               />
               <input
                 name="country"
                 value={form.country}
                 onChange={handleChange}
                 placeholder="Country"
-                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2d2d2d] focus:bg-white"
+                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm outline-none focus:border-[#2d2d2d] focus:bg-white"
+              />
+              <input
+                name="city"
+                value={form.city}
+                onChange={handleChange}
+                placeholder="City (optional)"
+                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm outline-none focus:border-[#2d2d2d] focus:bg-white"
               />
               <select
                 name="status"
                 value={form.status}
                 onChange={handleChange}
-                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm text-[#1a1a1a] outline-none focus:border-[#2d2d2d]"
+                className="h-10 rounded-xl border border-black/10 bg-[#faf9f6] px-3.5 text-sm outline-none focus:border-[#2d2d2d]"
               >
                 <option value="Active">Active</option>
                 <option value="Pending">Pending</option>
@@ -175,15 +291,16 @@ export default function UniversityDashboard() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="h-10 flex-1 rounded-full bg-[#2d2d2d] px-4 text-sm font-medium text-white transition hover:bg-black"
+                  disabled={saving}
+                  className="h-10 flex-1 rounded-full bg-[#2d2d2d] px-4 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
                 >
-                  {editingId ? "Update" : "+ Add"}
+                  {saving ? "Saving..." : editingId ? "Update" : "+ Add"}
                 </button>
                 {editingId && (
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="h-10 rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-[#2d2d2d] transition hover:bg-[#f0ebe3]"
+                    className="h-10 rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-[#2d2d2d] hover:bg-[#f0ebe3]"
                   >
                     Cancel
                   </button>
@@ -203,99 +320,131 @@ export default function UniversityDashboard() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Search university or country..."
-                  className="h-10 w-full rounded-xl border border-black/10 bg-[#faf9f6] pl-10 pr-3.5 text-sm outline-none transition focus:border-[#2d2d2d] focus:bg-white"
+                  placeholder="Search university, country, city..."
+                  className="h-10 w-full rounded-xl border border-black/10 bg-[#faf9f6] pl-10 pr-3.5 text-sm outline-none focus:border-[#2d2d2d] focus:bg-white"
                 />
               </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-left">
-                <thead>
-                  <tr className="border-y border-black/5 bg-[#faf9f6]">
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">#</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">University</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">Country</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">Status</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleData.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-4 py-12 text-center text-sm text-[#999]">
-                        No records found.
-                      </td>
-                    </tr>
-                  ) : (
-                    visibleData.map((item, index) => (
-                      <tr key={item.id} className="border-b border-black/[0.04] hover:bg-[#faf9f6]/70">
-                        <td className="px-4 py-3.5 text-sm font-semibold text-[#555]">
-                          {(currentPage - 1) * PAGE_SIZE + index + 1}
-                        </td>
-                        <td className="px-4 py-3.5 text-sm font-medium text-[#1a1a1a]">
-                          {item.university}
-                        </td>
-                        <td className="px-4 py-3.5 text-sm text-[#555]">{item.country}</td>
-                        <td className="px-4 py-3.5">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              item.status === "Active"
-                                ? "bg-[#e8f0d8] text-[#2d4a1e]"
-                                : item.status === "Pending"
-                                ? "bg-[#f0ebe3] text-[#6b4f2a]"
-                                : "bg-[#f5e6e6] text-[#7a2e2e]"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => handleEdit(item)}
-                              className="rounded-full bg-[#f0ebe3] px-2.5 py-1 text-xs font-medium text-[#2d2d2d] transition hover:bg-[#e5ddd0]"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item.id)}
-                              className="rounded-full bg-[#f5e6e6] px-2.5 py-1 text-xs font-medium text-[#7a2e2e] transition hover:bg-[#edd5d5]"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between border-t border-black/5 px-4 py-3.5">
-              <span className="text-xs text-[#666]">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-1.5">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => changePage(currentPage - 1)}
-                  className="h-8 w-8 rounded-full border border-black/10 bg-white text-sm font-medium text-[#2d2d2d] transition hover:bg-[#2d2d2d] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-[#2d2d2d]"
-                >
-                  ←
-                </button>
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => changePage(currentPage + 1)}
-                  className="h-8 w-8 rounded-full border border-black/10 bg-white text-sm font-medium text-[#2d2d2d] transition hover:bg-[#2d2d2d] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-[#2d2d2d]"
-                >
-                  →
+            {/* Loading / Error */}
+            {loading && (
+              <div className="px-4 py-12 text-center text-sm text-[#666]">
+                Loading data from backend...
+              </div>
+            )}
+            {error && !loading && (
+              <div className="mx-4 mb-4 rounded-xl bg-[#f5e6e6] px-4 py-3 text-sm text-[#7a2e2e]">
+                Error: {error}
+                <button onClick={fetchData} className="ml-3 underline">
+                  Retry
                 </button>
               </div>
-            </div>
+            )}
+
+            {/* Table */}
+            {!loading && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left">
+                  <thead>
+                    <tr className="border-y border-black/5 bg-[#faf9f6]">
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">#</th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">University</th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">Country</th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">City</th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">Status</th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#666]">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleData.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-4 py-12 text-center text-sm text-[#999]">
+                          No records found.
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleData.map((item, index) => (
+                        <tr key={item.id} className="border-b border-black/[0.04] hover:bg-[#faf9f6]/70">
+                          <td className="px-4 py-3.5 text-sm font-semibold text-[#555]">
+                            {(currentPage - 1) * PAGE_SIZE + index + 1}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm font-medium text-[#1a1a1a]">
+                            {item.website ? (
+                              <a
+                                href={item.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                {item.university}
+                              </a>
+                            ) : (
+                              item.university
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-[#555]">{item.country}</td>
+                          <td className="px-4 py-3.5 text-sm text-[#555]">{item.city || "—"}</td>
+                          <td className="px-4 py-3.5">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                item.status === "Active"
+                                  ? "bg-[#e8f0d8] text-[#2d4a1e]"
+                                  : item.status === "Pending"
+                                  ? "bg-[#f0ebe3] text-[#6b4f2a]"
+                                  : "bg-[#f5e6e6] text-[#7a2e2e]"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => handleEdit(item)}
+                                className="rounded-full bg-[#f0ebe3] px-2.5 py-1 text-xs font-medium text-[#2d2d2d] hover:bg-[#e5ddd0]"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                className="rounded-full bg-[#f5e6e6] px-2.5 py-1 text-xs font-medium text-[#7a2e2e] hover:bg-[#edd5d5]"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && (
+              <div className="flex items-center justify-between border-t border-black/5 px-4 py-3.5">
+                <span className="text-xs text-[#666]">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex gap-1.5">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => changePage(currentPage - 1)}
+                    className="h-8 w-8 rounded-full border border-black/10 bg-white text-sm font-medium text-[#2d2d2d] hover:bg-[#2d2d2d] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ←
+                  </button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => changePage(currentPage + 1)}
+                    className="h-8 w-8 rounded-full border border-black/10 bg-white text-sm font-medium text-[#2d2d2d] hover:bg-[#2d2d2d] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -341,7 +490,6 @@ function TabButton({ children, active, onClick }) {
 function WebsiteCard({ title, subtitle, url }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm flex flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-black/5 bg-[#faf9f6] px-5 py-4">
         <div>
           <h2 className="text-[17px] font-semibold text-[#1a1a1a]">{title}</h2>
@@ -357,7 +505,6 @@ function WebsiteCard({ title, subtitle, url }) {
         </a>
       </div>
 
-      {/* Iframe */}
       <div className="h-[650px] bg-[#faf9f6] flex-1">
         <iframe
           src={url}
@@ -368,7 +515,6 @@ function WebsiteCard({ title, subtitle, url }) {
         />
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between border-t border-black/5 bg-[#faf9f6] px-5 py-3">
         <span className="flex items-center gap-2 text-xs text-[#666]">
           <span className="h-2 w-2 rounded-full bg-green-600" />
