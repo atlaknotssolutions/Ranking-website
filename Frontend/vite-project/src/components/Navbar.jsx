@@ -1,202 +1,309 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function Navbar() {
+const Navbar = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [lang, setLang] = useState("EN");
+  const [currentLevel, setCurrentLevel] = useState(0); // 0 = main, 1 = University, 2 = Current news
+  const [activePath, setActivePath] = useState([]);
 
-  const navItems = [
-    { label: "University", to: "/university-dashboard" },
-    { label: "Research", to: "/research" },
-    { label: "Study and Teaching", to: "/study-and-teaching" },
-    { label: "Knowledge Transfer", to: "/knowledge-transfer" },
-    { label: "International", to: "/international" },
+  // Menu Data
+  const menuData = {
+    main: [
+      { title: "Ranking", hasChildren: false, path: "/university-dashboard" },
+      { title: "University", hasChildren: true, key: "university" },
+      { title: "Research", hasChildren: true, key: "research" },
+      { title: "Study", hasChildren: true, key: "study" },
+      { title: "Transfer", hasChildren: true, key: "transfer" },
+    ],
+    university: [
+      { title: "Current news", hasChildren: true, key: "current-news" },
+      { title: "Profile", hasChildren: true },
+      { title: "The University as employer", hasChildren: true },
+      { title: "Organization", hasChildren: true },
+      { title: "Faculties and institutes", hasChildren: true },
+      { title: "Facilities", hasChildren: false },
+      { title: "International", hasChildren: true },
+      { title: "Uni for all", hasChildren: true },
+      { title: "Our campus", hasChildren: false },
+      { title: "Ranking", hasChildren: false, path: "/university-dashboard" },
+    ],
+    "current-news": [
+      { title: "Current news", hasChildren: false },
+      { title: "All Events", hasChildren: false },
+      { title: "All News", hasChildren: false },
+      { title: "Official Announcements", hasChildren: false },
+    ],
+  };
+
+  const targetGroups = [
+    { title: "Prospective students", icon: "i" },
+    { title: "Students", icon: "book" },
+    { title: "Early career researchers", icon: "grad" },
+    { title: "Founders", icon: "rocket" },
   ];
 
+  const openMenu = () => {
+    setIsOpen(true);
+    setCurrentLevel(0);
+    setActivePath([]);
+  };
+
+  const closeMenu = () => {
+    setIsOpen(false);
+    setCurrentLevel(0);
+    setActivePath([]);
+  };
+
+  const goToLevel = (item) => {
+    if (!item.hasChildren) {
+      if (item.path) {
+        closeMenu();
+        navigate(item.path);
+      }
+      return;
+    }
+
+    setActivePath([...activePath, item.title]);
+    setCurrentLevel(currentLevel + 1);
+  };
+
+  const goBack = () => {
+    if (currentLevel === 0) return;
+    setActivePath(activePath.slice(0, -1));
+    setCurrentLevel(currentLevel - 1);
+  };
+
+  const getCurrentItems = () => {
+    if (currentLevel === 0) return menuData.main;
+    if (currentLevel === 1) return menuData.university;
+    if (currentLevel === 2) return menuData["current-news"];
+    return [];
+  };
+
   return (
-    <header className="absolute top-0 left-0 right-0 z-50 text-[#1a1a1a]">
-      <div className="border-b border-black/5 bg-[#f8f5f0]/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-end gap-5 px-4 py-2 text-sm sm:px-6 lg:px-8">
-          <button className="flex items-center gap-1.5 hover:opacity-70">
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            Search
-          </button>
+    <>
+      {/* ===== Top Navbar ===== */}
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+        <div className="max-w-[1400px] mx-auto px-5 h-16 flex items-center justify-between">
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-3">
+            <div className="w-9 h-9 relative">
+              <svg viewBox="0 0 48 48" className="w-full h-full">
+                <circle cx="24" cy="24" r="22" fill="none" stroke="#1a1a1a" strokeWidth="1" />
+                {[...Array(24)].map((_, i) => {
+                  const angle = (i * 15 * Math.PI) / 180;
+                  const r = 8 + (i % 3) * 4;
+                  return (
+                    <circle
+                      key={i}
+                      cx={24 + r * Math.cos(angle)}
+                      cy={24 + r * Math.sin(angle)}
+                      r={i % 4 === 0 ? 1.6 : 1.2}
+                      fill="#1a1a1a"
+                    />
+                  );
+                })}
+              </svg>
+            </div>
+            <span className="text-[17px] font-medium text-gray-900 tracking-tight">
+              University of Stuttgart
+            </span>
+          </a>
 
-          <button className="flex items-center gap-1.5 hover:opacity-70">
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              />
-            </svg>
-            Intranet
-          </button>
-
-          <button className="flex items-center gap-1.5 hover:opacity-70">
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-              />
-            </svg>
-          </button>
-
-          <button className="flex items-center gap-1.5 hover:opacity-70">
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-            Easy-to-Read Language
-          </button>
-
-          <div className="flex overflow-hidden rounded-full border border-black/10 text-xs font-medium">
-            <button
-              onClick={() => setLang("DE")}
-              className={`px-2.5 py-1 transition ${
-                lang === "DE"
-                  ? "bg-[#1a1a1a] text-white"
-                  : "bg-white text-[#1a1a1a]"
-              }`}
-            >
-              DE
+          {/* Right Icons */}
+          <div className="flex items-center gap-1">
+            {/* Language */}
+            <button className="p-2.5 hover:bg-gray-50 rounded-full transition-colors flex flex-col items-center">
+              <svg className="w-5 h-5 text-gray-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M12 2a7 7 0 0 1 7 7c0 4-3 7-7 11-4-4-7-7-7-11a7 7 0 0 1 7-7z" />
+                <circle cx="12" cy="9" r="2.2" />
+              </svg>
+              <svg className="w-2.5 h-2.5 text-gray-500 -mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+              </svg>
             </button>
+
+            {/* Search */}
+            <button className="p-2.5 hover:bg-gray-50 rounded-full transition-colors">
+              <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                <circle cx="11" cy="11" r="7.5" />
+                <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+              </svg>
+            </button>
+
+            {/* Hamburger */}
             <button
-              onClick={() => setLang("EN")}
-              className={`px-2.5 py-1 transition ${
-                lang === "EN"
-                  ? "bg-[#1a3a6e] text-white"
-                  : "bg-white text-[#1a1a1a]"
-              }`}
+              onClick={openMenu}
+              className="p-2.5 hover:bg-gray-50 rounded-full transition-colors"
             >
-              EN
+              <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="bg-[#f8f5f0]/90 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-[72px] items-center justify-between">
-            <div className="flex items-center gap-8">
-              <NavLink to="/" className="flex-shrink-0">
-                <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-black/10 bg-white">
-                  <svg viewBox="0 0 40 48" className="h-9 w-auto text-black">
-                    <path
-                      fill="currentColor"
-                      d="M20 2c-6 0-11 5-11 12 0 4 2 7 4 9-3 2-6 6-6 12v3h26v-3c0-6-3-10-6-12 2-2 4-5 4-9 0-7-5-12-11-12zm0 4c4 0 7 3 7 8s-3 8-7 8-7-3-7-8 3-8 7-8z"
-                    />
-                  </svg>
-                </div>
-              </NavLink>
-
-              <nav className="hidden items-center gap-7 text-[15px] font-medium md:flex">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `transition ${isActive ? "text-[#1a3a6e]" : "hover:text-[#1a3a6e]"}`
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </nav>
+      {/* ===== Full Screen Menu ===== */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-[#1a1a1a]/90 backdrop-blur-sm">
+          {/* Top bar inside menu */}
+          <div className="h-16 px-5 flex items-center justify-between border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8">
+                <svg viewBox="0 0 48 48" className="w-full h-full text-white">
+                  <circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" strokeWidth="1" />
+                  {[...Array(24)].map((_, i) => {
+                    const angle = (i * 15 * Math.PI) / 180;
+                    const r = 8 + (i % 3) * 4;
+                    return (
+                      <circle
+                        key={i}
+                        cx={24 + r * Math.cos(angle)}
+                        cy={24 + r * Math.sin(angle)}
+                        r={i % 4 === 0 ? 1.6 : 1.2}
+                        fill="currentColor"
+                      />
+                    );
+                  })}
+                </svg>
+              </div>
+              <span className="text-white text-[16px] font-medium">University of Stuttgart</span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button className="hidden rounded-full border border-black/15 bg-white px-5 py-2 text-sm font-medium transition hover:bg-black/5 md:block">
-                Faculties
+            <div className="flex items-center gap-2">
+              <button className="p-2 text-white/80 hover:text-white">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                  <circle cx="11" cy="11" r="7.5" />
+                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+                </svg>
               </button>
-
-              <button
-                className="rounded-md p-2 md:hidden"
-                onClick={() => setIsOpen(!isOpen)}
-              >
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  {isOpen ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  )}
+              <button onClick={closeMenu} className="p-2 text-white/80 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                  <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      {isOpen && (
-        <div className="border-t border-black/10 bg-[#f8f5f0] px-4 pb-5 md:hidden">
-          <div className="space-y-1 py-4 text-[15px] font-medium">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setIsOpen(false)}
-                className={({ isActive }) =>
-                  `block py-2.5 ${isActive ? "text-[#1a3a6e]" : "text-[#1a1a1a]"}`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-            <button className="mt-3 w-full rounded-full border border-black/15 bg-white px-5 py-2.5 text-sm font-medium">
-              Faculties
-            </button>
+          {/* Menu Content */}
+          <div className="relative h-[calc(100vh-64px)] overflow-y-auto">
+            {/* Progress Indicator (left blue line) */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00AEEF]">
+              <div
+                className="absolute left-0 bg-[#00AEEF] transition-all duration-300"
+                style={{
+                  top: currentLevel === 0 ? "48px" : "0",
+                  height: currentLevel === 0 ? "40px" : "100%",
+                  width: "4px",
+                }}
+              />
+            </div>
+
+            <div className="pl-8 pr-6 pt-8 pb-12 max-w-3xl">
+              {/* Back button + Progress bar (when not on main) */}
+              {currentLevel > 0 && (
+                <div className="mb-6">
+                  <button
+                    onClick={goBack}
+                    className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    back
+                  </button>
+
+                  {/* Progress segments */}
+                  <div className="flex gap-1 h-1.5 mb-6">
+                    <div className={`flex-1 rounded-full ${currentLevel >= 1 ? "bg-white/30" : "bg-white/10"}`} />
+                    <div className={`flex-1 rounded-full ${currentLevel >= 2 ? "bg-[#00AEEF]" : "bg-white/10"}`} />
+                    <div className="flex-1 rounded-full bg-white/10" />
+                  </div>
+                </div>
+              )}
+
+              {/* Main Level Header Indicator */}
+              {currentLevel === 0 && (
+                <div className="mb-8">
+                  <div className="w-12 h-1 bg-[#00AEEF] rounded-full" />
+                </div>
+              )}
+
+              {/* Sub Level Title Bar */}
+              {currentLevel === 1 && (
+                <div className="mb-2 -mx-2">
+                  <div className="bg-[#00AEEF] text-white px-4 py-3 text-lg font-medium">
+                    University
+                  </div>
+                </div>
+              )}
+
+              {/* Menu Items */}
+              <nav className="space-y-0">
+                {getCurrentItems().map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => goToLevel(item)}
+                    className="w-full flex items-center justify-between py-4 border-b border-white/15 text-left group"
+                  >
+                    <span className="text-white text-[17px] font-normal group-hover:text-[#00AEEF] transition-colors">
+                      {item.title}
+                    </span>
+                    {item.hasChildren && (
+                      <svg className="w-5 h-5 text-white/60 group-hover:text-[#00AEEF]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </nav>
+
+              {/* Information for section (only on main level) */}
+              {currentLevel === 0 && (
+                <div className="mt-10">
+                  <h3 className="text-white/70 text-sm mb-5">Information for</h3>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                    {targetGroups.map((group) => (
+                      <a
+                        key={group.title}
+                        href="#"
+                        className="flex items-center gap-3 text-white hover:text-[#00AEEF] transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-full border border-white/40 flex items-center justify-center text-sm">
+                          {group.icon === "i" && "i"}
+                          {group.icon === "book" && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeWidth="1.5" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                              <path strokeWidth="1.5" d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                            </svg>
+                          )}
+                          {group.icon === "grad" && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeWidth="1.5" d="M12 14l9-5-9-5-9 5 9 5z" />
+                              <path strokeWidth="1.5" d="M12 14l6.16-3.422a12.083 12.083 0 0 1 .665 6.479A11.952 11.952 0 0 0 12 20.055a11.952 11.952 0 0 0-6.824-2.998 12.078 12.078 0 0 1 .665-6.479L12 14z" />
+                            </svg>
+                          )}
+                          {group.icon === "rocket" && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeWidth="1.5" d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+                              <path strokeWidth="1.5" d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-[15px]">{group.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
-    </header>
+    </>
   );
-}
+};
+
+export default Navbar;

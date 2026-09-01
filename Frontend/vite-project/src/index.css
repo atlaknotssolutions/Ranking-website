@@ -1,60 +1,14 @@
 @import "tailwindcss";
 
-:root {
-  font-family: "Inter", "Segoe UI", sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: #182235;
-  background: #f6f1ea;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  background: #f6f1ea;
-  color: #182235;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-img {
-  display: block;
-  max-width: 100%;
-}
-
-button,
-a {
-  transition: all 0.2s ease;
-}
-
-@layer utilities {
-  .bg-goethe-navy {
-    background-color: #0e2a47;
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
   }
-
-  .bg-goethe-cream {
-    background-color: #f6f1ea;
+  to {
+    transform: translateX(0);
   }
+}
 
-  .text-goethe-navy {
-    color: #0e2a47;
-  }
-
-  .text-goethe-muted {
-    color: #586779;
-  }
-
-  .border-goethe-line {
-    border-color: rgba(14, 42, 71, 0.12);
-  }
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out forwards;
 }
