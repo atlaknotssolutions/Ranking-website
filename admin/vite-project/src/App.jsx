@@ -1,13 +1,13 @@
-import React from 'react';
-import AdminUpload from './AdminUpload';
-import './App.css';
+import React from "react";
+import AdminUpload from "./AdminUpload";
+import "./App.css";
 
 function App() {
   // Apna backend URL yahan daalo
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = "https://backend-taupe-ten-61.vercel.app/api";
 
   const handleUploadSuccess = () => {
-    console.log('Upload successful! Refresh data if needed.');
+    console.log("Upload successful! Refresh data if needed.");
   };
 
   return (
