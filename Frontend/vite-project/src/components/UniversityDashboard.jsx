@@ -2,8 +2,8 @@ import React, { useMemo, useState } from "react";
 
 const PAGE_SIZE = 7;
 
-const THE_URL = "https://www.timeshighereducation.com/world-university-rankings";
-const OTHER_URL = "https://www.timeshighereducation.com/world-university-rankings";
+const THE_URL = "https://www.timeshighereducation.com/world-university-rankings/latest/world-ranking";
+const OTHER_URL = "https://www.timeshighereducation.com/world-university-rankings/latest/world-ranking";
 
 const initialData = [
   { id: 1, university: "University of Oxford", country: "United Kingdom", status: "Active" },
