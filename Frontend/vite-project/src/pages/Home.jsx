@@ -19,7 +19,7 @@ export default function HomeContent() {
       category: "Press Release",
       date: "08/13/2025",
       title: "When Transparency Changes Creativity",
-      image: "https://images.unsplash.com/photo-1529107386315-e1a2fe5b6d5f?w=600&h=400&fit=crop",
+      image: "https://community.nasscom.in/sites/default/files/styles/home_featured_events_860_x_540/public/media/images/loud%20%2818%29_0.png.webp?itok=ghigJ02-",
     },
     {
       category: "Publication",
